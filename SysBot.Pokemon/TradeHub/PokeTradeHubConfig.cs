@@ -84,17 +84,14 @@ public sealed class PokeTradeHubConfig : BaseConfig
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public FavoredPrioritySettings Favoritism { get; set; } = new();
 
-    [Browsable(false)]
     [Category(Integration)]
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public QQSettings QQ { get; set; } = new();
 
-    [Browsable(false)]
     [Category(Integration)]
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public BilibiliSettings Bilibili { get; set; } = new();
 
-    [Browsable(false)]
     [Category(Integration)]
     [TypeConverter(typeof(ExpandableObjectConverter))]
     public DodoSettings Dodo { get; set; } = new();
