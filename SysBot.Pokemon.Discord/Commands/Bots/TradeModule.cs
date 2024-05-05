@@ -139,7 +139,10 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         var sig = Context.User.GetFavor();
 
         await QueueHelper<T>.AddToQueueAsync(Context, code, trainerName, sig, new T(), PokeRoutineType.FixOT, PokeTradeType.FixOT, Context.User, false, 1, 1, false, false, lgcode).ConfigureAwait(false);
-        _ = DeleteMessagesAfterDelayAsync(null, Context.Message, 2);
+        if (Context.Message is IUserMessage userMessage)
+        {
+            _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
+        }
     }
 
     [Command("fixOT")]
@@ -162,7 +165,10 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         var lgcode = Info.GetRandomLGTradeCode();
 
         await QueueHelper<T>.AddToQueueAsync(Context, code, trainerName, sig, new T(), PokeRoutineType.FixOT, PokeTradeType.FixOT, Context.User, false, 1, 1, false, false, lgcode).ConfigureAwait(false);
-        _ = DeleteMessagesAfterDelayAsync(null, Context.Message, 2);
+        if (Context.Message is IUserMessage userMessage)
+        {
+            _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
+        }
     }
 
     [Command("fixOTList")]
@@ -198,7 +204,10 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
 
         var code = Info.GetRandomTradeCode(userID);
         await DittoTrade(code, keyword, language, nature).ConfigureAwait(false);
-        _ = DeleteMessagesAfterDelayAsync(null, Context.Message, 2);
+        if (Context.Message is IUserMessage userMessage)
+        {
+            _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
+        }
     }
 
     [Command("dittoTrade")]
@@ -246,7 +255,10 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         pk.ResetPartyStats();
         var sig = Context.User.GetFavor();
         await QueueHelper<T>.AddToQueueAsync(Context, code, Context.User.Username, sig, pk, PokeRoutineType.LinkTrade, PokeTradeType.Specific).ConfigureAwait(false);
-        _ = DeleteMessagesAfterDelayAsync(null, Context.Message, 2);
+        if (Context.Message is IUserMessage userMessage)
+        {
+            _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
+        }
     }
 
     [Command("itemTrade")]
@@ -305,7 +317,10 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         var sig = Context.User.GetFavor();
         await QueueHelper<T>.AddToQueueAsync(Context, code, Context.User.Username, sig, pk, PokeRoutineType.LinkTrade, PokeTradeType.Specific).ConfigureAwait(false);
 
-        _ = DeleteMessagesAfterDelayAsync(null, Context.Message, 2);
+        if (Context.Message is IUserMessage userMessage)
+        {
+            _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
+        }
     }
 
     [Command("tradeList")]
@@ -380,16 +395,21 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             LogUtil.LogSafe(ex, nameof(TradeModule<T>));
             _ = ReplyAndDeleteAsync("An error occurred while processing the request.", 2, Context.Message);
         }
+        if (Context.Message is IUserMessage userMessage)
+        {
+            _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
+        }
     }
 
     [Command("hidetrade")]
     [Alias("ht")]
-    [Summary("Makes the bot trade you the provided Pokémon file without showing the trade embed details.")]
+    [Summary("Makes the bot trade you a Pokémon converted from the provided Showdown Set without showing the trade embed details.")]
     [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
-    public Task HideTradeAsyncAttach([Summary("Trade Code")] int code)
+    public Task HideTradeAsync([Summary("Showdown Set")][Remainder] string content)
     {
-        var sig = Context.User.GetFavor();
-        return HideTradeAsyncAttach(code, sig, Context.User);
+        var userID = Context.User.Id;
+        var code = Info.GetRandomTradeCode(userID);
+        return HideTradeAsync(code, content);
     }
 
     [Command("hidetrade")]
@@ -526,27 +546,26 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
 
     [Command("hidetrade")]
     [Alias("ht")]
-    [Summary("Makes the bot trade you a Pokémon converted from the provided Showdown Set without showing the trade embed details.")]
+    [Summary("Makes the bot trade you the provided Pokémon file without showing the trade embed details.")]
     [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
-    public Task HideTradeAsync([Summary("Showdown Set")][Remainder] string content)
+    public Task HideTradeAsyncAttach(
+        [Summary("Trade Code")] int code,
+        [Summary("Ignore AutoOT")] bool ignoreAutoOT = false)
     {
-        var userID = Context.User.Id;
-        var code = Info.GetRandomTradeCode(userID);
-        return HideTradeAsync(code, content);
+        var sig = Context.User.GetFavor();
+        return HideTradeAsyncAttach(code, sig, Context.User, ignoreAutoOT);
     }
 
     [Command("hidetrade")]
     [Alias("ht")]
     [Summary("Makes the bot trade you the attached file without showing the trade embed details.")]
     [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
-    private async Task HideTradeAsyncAttach()
+    private async Task HideTradeAsyncAttach([Summary("Ignore AutoOT")] bool ignoreAutoOT = false)
     {
         var userID = Context.User.Id;
         var code = Info.GetRandomTradeCode(userID);
         var sig = Context.User.GetFavor();
-
-        await HideTradeAsyncAttach(code, sig, Context.User).ConfigureAwait(false);
-
+        await HideTradeAsyncAttach(code, sig, Context.User, ignoreAutoOT).ConfigureAwait(false);
         if (Context.Message is IUserMessage userMessage)
         {
             _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
@@ -555,12 +574,13 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
 
     [Command("trade")]
     [Alias("t")]
-    [Summary("Makes the bot trade you the provided Pokémon file.")]
+    [Summary("Makes the bot trade you a Pokémon converted from the provided Showdown Set.")]
     [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
-    public Task TradeAsyncAttach([Summary("Trade Code")] int code)
+    public Task TradeAsync([Summary("Showdown Set")][Remainder] string content)
     {
-        var sig = Context.User.GetFavor();
-        return TradeAsyncAttach(code, sig, Context.User);
+        var userID = Context.User.Id;
+        var code = Info.GetRandomTradeCode(userID);
+        return TradeAsync(code, content);
     }
 
     [Command("trade")]
@@ -570,6 +590,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
     public async Task TradeAsync([Summary("Trade Code")] int code, [Summary("Showdown Set")][Remainder] string content)
     {
         List<Pictocodes>? lgcode = null;
+
         // Check if the user is already in the queue
         var userID = Context.User.Id;
         if (Info.IsUserInQueue(userID))
@@ -578,7 +599,6 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             return;
         }
 
-        content = ReusableActions.StripCodeBlock(content);
         var ignoreAutoOT = content.Contains("OT:") || content.Contains("TID:") || content.Contains("SID:");
         var set = new ShowdownSet(content);
         var template = AutoLegalityWrapper.GetTemplate(set);
@@ -594,6 +614,56 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         {
             var sav = AutoLegalityWrapper.GetTrainerInfo<T>();
             var pkm = sav.GetLegal(template, out var result);
+            var la = new LegalityAnalysis(pkm);
+            var spec = GameInfo.Strings.Species[template.Species];
+
+            if (pkm is not T pk || !la.Valid)
+            {
+                // Perform spellcheck / other legality corrections if SpellCheck is enabled
+                if (SysCord<T>.Runner.Config.Trade.TradeConfiguration.SpellCheck)
+                {
+                    var correctedContent = PostCorrectShowdown<T>.PerformSpellCheck(content, la);
+                    set = new ShowdownSet(correctedContent);
+                    template = AutoLegalityWrapper.GetTemplate(set);
+                    pkm = sav.GetLegal(template, out result);
+                    la = new LegalityAnalysis(pkm);
+                }
+
+                if (pkm is not T correctedPk || !la.Valid)
+                {
+                    var reason = result == "Timeout" ? $"That {spec} set took too long to generate." :
+                                 result == "VersionMismatch" ? "Request refused: PKHeX and Auto-Legality Mod version mismatch." :
+                                 $"I wasn't able to create a {spec} from that set.";
+
+                    var embedBuilder = new EmbedBuilder()
+                        .WithTitle("Trade Creation Failed.")
+                        .WithColor(Color.Red)
+                        .AddField("Status", $"Failed to create {spec}.")
+                        .AddField("Reason", reason);
+
+                    if (result == "Failed")
+                    {
+                        var legalizationHint = AutoLegalityWrapper.GetLegalizationHint(template, sav, pkm);
+                        if (legalizationHint.Contains("Requested shiny value (ShinyType."))
+                        {
+                            legalizationHint = $"{spec} **cannot** be shiny. Please try again.";
+                        }
+
+                        if (!string.IsNullOrEmpty(legalizationHint))
+                        {
+                            embedBuilder.AddField("Hint", legalizationHint);
+                        }
+                    }
+
+                    string userMention = Context.User.Mention;
+                    string messageContent = $"{userMention}, here's the report for your request:";
+                    var message = await Context.Channel.SendMessageAsync(text: messageContent, embed: embedBuilder.Build()).ConfigureAwait(false);
+                    _ = DeleteMessagesAfterDelayAsync(message, Context.Message, 30);
+                    return;
+                }
+
+                pk = correctedPk;
+            }
 
             if (SysCord<T>.Runner.Config.Trade.TradeConfiguration.SuggestRelearnMoves)
             {
@@ -639,39 +709,6 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                     }
                 }
             }
-            var la = new LegalityAnalysis(pkm);
-            var spec = GameInfo.Strings.Species[template.Species];
-            pkm = EntityConverter.ConvertToType(pkm, typeof(T), out _) ?? pkm;
-            if (pkm is not T pk || !la.Valid)
-            {
-                var reason = result == "Timeout" ? $"That {spec} set took too long to generate." :
-                             result == "VersionMismatch" ? "Request refused: PKHeX and Auto-Legality Mod version mismatch." :
-                             $"I wasn't able to create a {spec} from that set.";
-
-                var embedBuilder = new EmbedBuilder()
-                    .WithTitle("Trade Creation Failed.")
-                    .WithColor(Color.Red)
-                    .AddField("Status", $"Failed to create {spec}.")
-                    .AddField("Reason", reason);
-
-                if (result == "Failed")
-                {
-                    var hint = AutoLegalityWrapper.GetLegalizationHint(template, sav, pkm);
-                    if (hint.Contains("Requested shiny value (ShinyType."))
-                    {
-                        hint = $"{spec} **cannot** be shiny. Please try again.";
-                    }
-                    embedBuilder.AddField("Hint", hint);
-                }
-
-                string userMention = Context.User.Mention;
-                string messageContent = $"{userMention}, here's the report for your request:";
-
-                var message = await Context.Channel.SendMessageAsync(text: messageContent, embed: embedBuilder.Build()).ConfigureAwait(false);
-                _ = DeleteMessagesAfterDelayAsync(message, Context.Message, 30);
-
-                return;
-            }
             pk.ResetPartyStats();
 
             if (pkm is PB7)
@@ -697,27 +734,26 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
 
     [Command("trade")]
     [Alias("t")]
-    [Summary("Makes the bot trade you a Pokémon converted from the provided Showdown Set.")]
+    [Summary("Makes the bot trade you the provided Pokémon file.")]
     [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
-    public Task TradeAsync([Summary("Showdown Set")][Remainder] string content)
+    public Task TradeAsyncAttach(
+    [Summary("Trade Code")] int code,
+    [Summary("Ignore AutoOT")] bool ignoreAutoOT = false)
     {
-        var userID = Context.User.Id;
-        var code = Info.GetRandomTradeCode(userID);
-        return TradeAsync(code, content);
+        var sig = Context.User.GetFavor();
+        return TradeAsyncAttach(code, sig, Context.User, ignoreAutoOT);
     }
 
     [Command("trade")]
     [Alias("t")]
     [Summary("Makes the bot trade you the attached file.")]
     [RequireQueueRole(nameof(DiscordManager.RolesTrade))]
-    public async Task TradeAsyncAttach()
+    public async Task TradeAsyncAttach([Summary("Ignore AutoOT")] bool ignoreAutoOT = false)
     {
         var userID = Context.User.Id;
         var code = Info.GetRandomTradeCode(userID);
         var sig = Context.User.GetFavor();
-
-        await TradeAsyncAttach(code, sig, Context.User);
-
+        await TradeAsyncAttach(code, sig, Context.User, ignoreAutoOT);
         if (Context.Message is IUserMessage userMessage)
         {
             _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
@@ -782,7 +818,10 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             await ProcessSingleTradeAsync(trade, batchTradeCode, true, batchTradeNumber, trades.Count); // Pass the total number of trades here
             batchTradeNumber++;
         }
-        _ = DeleteMessagesAfterDelayAsync(null, Context.Message, 2);
+        if (Context.Message is IUserMessage userMessage)
+        {
+            _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
+        }
     }
 
     private static List<string> ParseBatchTradeContent(string content)
@@ -856,6 +895,10 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
                 await ProcessSingleTradeAsync((T)pk, batchTradeCode, true, batchTradeNumber, entries.Count);
                 batchTradeNumber++;
             }
+        }
+        if (Context.Message is IUserMessage userMessage)
+        {
+            _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
         }
     }
 
@@ -1118,7 +1161,10 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         }
         finally
         {
-            _ = DeleteMessagesAfterDelayAsync(null, Context.Message, 2);
+            if (Context.Message is IUserMessage userMessage)
+            {
+                _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
+            }
         }
     }
 
@@ -1279,7 +1325,10 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         }
         finally
         {
-            _ = DeleteMessagesAfterDelayAsync(null, Context.Message, 2);
+            if (Context.Message is IUserMessage userMessage)
+            {
+                _ = DeleteMessagesAfterDelayAsync(userMessage, null, 2);
+            }
         }
     }
 
@@ -1317,7 +1366,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
         return TradeAsyncAttachUser(code, _);
     }
 
-    private async Task TradeAsyncAttach(int code, RequestSignificance sig, SocketUser usr)
+    private async Task TradeAsyncAttach(int code, RequestSignificance sig, SocketUser usr, bool ignoreAutoOT = false)
     {
         var attachment = Context.Message.Attachments.FirstOrDefault();
         if (attachment == default)
@@ -1334,10 +1383,10 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             return;
         }
 
-        await AddTradeToQueueAsync(code, usr.Username, pk, sig, usr).ConfigureAwait(false);
+        await AddTradeToQueueAsync(code, usr.Username, pk, sig, usr, ignoreAutoOT: ignoreAutoOT).ConfigureAwait(false);
     }
 
-    private async Task HideTradeAsyncAttach(int code, RequestSignificance sig, SocketUser usr)
+    private async Task HideTradeAsyncAttach(int code, RequestSignificance sig, SocketUser usr, bool ignoreAutoOT = false)
     {
         var attachment = Context.Message.Attachments.FirstOrDefault();
         if (attachment == default)
@@ -1354,7 +1403,7 @@ public class TradeModule<T> : ModuleBase<SocketCommandContext> where T : PKM, ne
             return;
         }
 
-        await AddTradeToQueueAsync(code, usr.Username, pk, sig, usr, isHiddenTrade: true).ConfigureAwait(false);
+        await AddTradeToQueueAsync(code, usr.Username, pk, sig, usr, isHiddenTrade: true, ignoreAutoOT: ignoreAutoOT).ConfigureAwait(false);
     }
 
     private static T? GetRequest(Download<PKM> dl)
